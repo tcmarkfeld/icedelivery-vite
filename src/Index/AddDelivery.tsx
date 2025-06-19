@@ -48,8 +48,8 @@ import {
   monterayShores,
   currituckClub,
 } from '@/components/constants/neighborhoods';
-import { useEffect, useState } from 'react';
-import { SuccessDialog } from '@/components/SuccessDialog';
+import { useEffect } from 'react';
+import { toast } from 'sonner';
 
 const formSchema = z
   .object({
@@ -98,7 +98,6 @@ const formSchema = z
   );
 
 function AddDelivery() {
-  const [successOpen, setSuccessOpen] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -176,10 +175,10 @@ function AddDelivery() {
       }),
     }).then((res) => {
       if (res.status === 200) {
-        setSuccessOpen(true);
+        toast.success('Delivery added successfully');
         form.reset(); // clear form
       } else {
-        alert('Something went wrong. Please try again');
+        toast.error(`Failed to add delivery: ${res.statusText}`);
       }
     });
   }
@@ -539,7 +538,6 @@ function AddDelivery() {
           </div>
         </form>
       </Form>
-      <SuccessDialog open={successOpen} onClose={() => setSuccessOpen(false)} />
     </Card>
   );
 }

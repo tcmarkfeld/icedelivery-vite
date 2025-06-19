@@ -23,6 +23,7 @@ import { Save, Trash2 } from 'lucide-react';
 import { ConfirmDeleteDialog } from '../DeleteDialog';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 interface DeliveryExpandableContentProps {
   delivery: Delivery;
@@ -91,9 +92,10 @@ export function DeliveryExpandableContent({
     });
 
     if (response.ok) {
+      toast.success('Successfully deleted delivery');
       queryClient.invalidateQueries({ queryKey: ['deliveries'] });
     } else {
-      alert('Failed to delete delivery');
+      toast.error('Failed to delete delivery');
     }
     setDeleteDialog({ open: false, id: null });
   };

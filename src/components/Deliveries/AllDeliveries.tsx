@@ -24,12 +24,12 @@ import {
   ChevronRight,
   ChevronUp,
 } from 'lucide-react';
-import { SuccessDialog } from '../SuccessDialog';
 import { format } from 'date-fns';
 import {
   DeliveryExpandableContent,
   type Delivery,
 } from './DeliveryExpandableContent';
+import { toast } from 'sonner';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const API_URL = `${API_BASE_URL}/api/delivery/getall`;
@@ -38,7 +38,6 @@ const UPDATE_URL = `${API_BASE_URL}/api/delivery/edit`;
 export default function AllDeliveriesTable() {
   const [expandedRow, setExpandedRow] = React.useState<number | null>(null);
   const [globalFilter, setGlobalFilter] = React.useState('');
-  const [successOpen, setSuccessOpen] = React.useState(false);
   const [page, setPage] = React.useState(0);
   const itemsPerPage = 25;
   const queryClient = useQueryClient();
@@ -95,11 +94,77 @@ export default function AllDeliveriesTable() {
     });
     if (response.ok) {
       queryClient.invalidateQueries({ queryKey: ['deliveries'] });
-      setSuccessOpen(true);
+      toast.success('Successfully updated delivery information.');
     } else {
-      alert('Update failed');
+      toast.error('Failed to update delivery information.');
     }
   };
+
+  function convertDeliveriesToCSV(deliveries: Delivery[]): string {
+    if (!deliveries || deliveries.length === 0) return '';
+
+    const headers = [
+      'id',
+      'start_date',
+      'end_date',
+      'cooler_size',
+      'ice_type',
+      'delivery_address',
+      'neighborhood',
+      'neighborhood_name',
+      'customer_name',
+      'customer_phone',
+      'customer_email',
+      'cooler_num',
+      'bag_limes',
+      'bag_oranges',
+      'bag_lemons',
+      'marg_salt',
+      'freeze_pops',
+      'tip',
+      'deliverytime',
+      'dayornight',
+      'special_instructions',
+    ];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const escape = (value: any): string =>
+      `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+    const rows = deliveries.map((delivery) =>
+      headers.map((key) => escape(delivery[key as keyof Delivery])).join(','),
+    );
+
+    return [headers.join(','), ...rows].join('\n');
+  }
+
+  async function downloadLastYearDeliveriesCSV() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/delivery/getlastyear`, {
+        headers: { 'auth-token': token || '' },
+      });
+      if (!response.ok) toast.error('Failed to download deliveries');
+
+      const deliveries = await response.json();
+      console.log(deliveries);
+
+      const csv = convertDeliveriesToCSV(deliveries);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'deliveries_last_year.csv';
+      link.click();
+
+      URL.revokeObjectURL(url);
+      toast.success("Successfully downloaded last year's deliveries as a CSV");
+    } catch (error) {
+      console.error('CSV download failed:', error);
+      toast.error('Could not download deliveries CSV.');
+    }
+  }
 
   if (isPending) {
     return <div className="flex justify-center p-8">Loading deliveries...</div>;
@@ -128,7 +193,7 @@ export default function AllDeliveriesTable() {
   return (
     <>
       <Card className="p-4">
-        <CardHeader className="flex h-fit w-full flex-row items-start justify-between">
+        <CardHeader className="flex h-fit w-full flex-row items-center justify-between">
           <div>
             <CardTitle className="text-start text-xl">All Deliveries</CardTitle>
             <CardDescription className="text-start">
@@ -140,9 +205,12 @@ export default function AllDeliveriesTable() {
               </p>
             </CardDescription>
           </div>
-          <div className="min-w-[200px]">
+          <div className="flex flex-row gap-2">
+            <Button variant="outline" onClick={downloadLastYearDeliveriesCSV}>
+              Download Last Year's Deliveries
+            </Button>
             <Input
-              placeholder="Search by customer name..."
+              placeholder="Search by name..."
               value={globalFilter}
               onChange={(e) => setGlobalFilter(e.target.value)}
               className="mx-auto mb-4 w-full max-w-sm"
@@ -180,13 +248,25 @@ export default function AllDeliveriesTable() {
                       <TableCell className="text-start">
                         {row.start_date &&
                         !isNaN(new Date(row.start_date).getTime())
-                          ? format(new Date(new Date(row.start_date).getTime() + 24 * 60 * 60 * 1000), 'PPP')
+                          ? format(
+                              new Date(
+                                new Date(row.start_date).getTime() +
+                                  24 * 60 * 60 * 1000,
+                              ),
+                              'PPP',
+                            )
                           : 'Invalid date'}
                       </TableCell>
                       <TableCell className="text-start">
                         {row.end_date &&
                         !isNaN(new Date(row.end_date).getTime())
-                          ? format(new Date(new Date(row.end_date).getTime() + 24 * 60 * 60 * 1000), 'PPP')
+                          ? format(
+                              new Date(
+                                new Date(row.end_date).getTime() +
+                                  24 * 60 * 60 * 1000,
+                              ),
+                              'PPP',
+                            )
                           : 'Invalid date'}
                       </TableCell>
                       <TableCell className="text-start">
@@ -240,7 +320,6 @@ export default function AllDeliveriesTable() {
           </div>
         </CardContent>
       </Card>
-      <SuccessDialog open={successOpen} onClose={() => setSuccessOpen(false)} />
     </>
   );
 }
