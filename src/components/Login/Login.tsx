@@ -11,7 +11,10 @@ interface LoginCredentials {
   password: string;
 }
 
-const loginUser = async ({ email, password }: LoginCredentials): Promise<string> => {
+const loginUser = async ({
+  email,
+  password,
+}: LoginCredentials): Promise<string> => {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const loginURL = `${API_BASE_URL}/api/auth/user/login/${email}/${password}`;
   const response = await fetch(loginURL);
@@ -59,7 +62,7 @@ const LoginScreen = () => {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md p-6">
         <CardHeader>
-          <CardTitle className="text-center text-2xl">
+          <CardTitle className="flex flex-col items-center justify-center text-center text-2xl">
             <img src={logo} height={100} width={65} /> Corolla Ice Delivery
             Login
           </CardTitle>
@@ -84,7 +87,11 @@ const LoginScreen = () => {
               {error}
             </p>
           )}
-          <Button className="w-full" onClick={loginAdmin} disabled={loginMutation.isPending}>
+          <Button
+            className="w-full"
+            onClick={loginAdmin}
+            disabled={loginMutation.isPending}
+          >
             {loginMutation.isPending ? 'Logging in...' : 'Login'}
           </Button>
         </CardContent>
