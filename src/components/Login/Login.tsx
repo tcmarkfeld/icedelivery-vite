@@ -1,9 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import logo from '@/assets/ice-delivery.webp';
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+const loginUser = async ({ email, password }: LoginCredentials): Promise<string> => {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const loginURL = `${API_BASE_URL}/api/auth/user/login/${email}/${password}`;
+  const response = await fetch(loginURL);
+  return await response.text();
+};
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -11,15 +24,23 @@ const LoginScreen = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const loginAdmin = async () => {
-    const loginURL = `https://ice-delivery.fly.dev/api/auth/user/login/${email}/${password}`;
-    try {
-      const response = await fetch(loginURL);
-      const data = await response.text();
+  const loginMutation = useMutation({
+    mutationFn: loginUser,
+    onSuccess: (data) => {
       verifyRes(data);
-    } catch (err) {
+    },
+    onError: (err) => {
       setError(`An error occurred. Please try again. ${err}`);
+    },
+  });
+
+  const loginAdmin = () => {
+    if (!email || !password) {
+      setError('You must fill in all fields');
+      return;
     }
+    setError('');
+    loginMutation.mutate({ email, password });
   };
 
   const verifyRes = (data: string) => {
@@ -28,8 +49,6 @@ const LoginScreen = () => {
       data === '{"errorState":0,"message":"Password is invalid"}'
     ) {
       setError('Invalid email or password');
-    } else if (!email || !password) {
-      setError('You must fill in all fields');
     } else {
       localStorage.setItem('token', data);
       navigate('/deliveries');
@@ -65,8 +84,8 @@ const LoginScreen = () => {
               {error}
             </p>
           )}
-          <Button className="w-full" onClick={loginAdmin}>
-            Login
+          <Button className="w-full" onClick={loginAdmin} disabled={loginMutation.isPending}>
+            {loginMutation.isPending ? 'Logging in...' : 'Login'}
           </Button>
         </CardContent>
       </Card>

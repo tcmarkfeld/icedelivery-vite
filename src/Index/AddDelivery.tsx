@@ -111,7 +111,7 @@ function AddDelivery() {
       coolerSize: '',
       iceType: '',
       coolerNum: '1',
-      tip: '',
+      tip: '0',
       customerEmail: '',
       limes: '0',
       oranges: '0',
@@ -145,7 +145,8 @@ function AddDelivery() {
       deliveryTimeFormatted = `${hour}:${minute}`;
     }
 
-    fetch('https://ice-delivery.fly.dev/api/delivery/add', {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    fetch(`${API_BASE_URL}/api/delivery/add`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -157,8 +158,8 @@ function AddDelivery() {
         customer_name: values.customerName,
         customer_phone: values.phone,
         customer_email: values.customerEmail,
-        start_date: values.startDate.toISOString().split('T')[0],
-        end_date: values.endDate.toISOString().split('T')[0],
+        start_date: new Date(values.startDate),
+        end_date: new Date(values.endDate),
         special_instructions: values.specialInstructions || '',
         cooler_size: values.coolerSize,
         ice_type: values.iceType,
