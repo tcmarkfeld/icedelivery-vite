@@ -110,7 +110,7 @@ function AddDelivery() {
       coolerSize: '',
       iceType: '',
       coolerNum: '1',
-      tip: '0',
+      tip: '',
       customerEmail: '',
       limes: '0',
       oranges: '0',
