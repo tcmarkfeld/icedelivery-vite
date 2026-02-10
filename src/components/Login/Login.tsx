@@ -5,20 +5,75 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import logo from '@/assets/ice-delivery.webp';
+import { buildApiUrl } from '@/lib/api';
 
 interface LoginCredentials {
   email: string;
   password: string;
 }
 
+interface LoginResponse {
+  errorState?: number;
+  message?: string;
+  token?: string;
+}
+
+function normalizeToken(value: string) {
+  return value.trim().replace(/^['"]|['"]$/g, '');
+}
+
+function parseLoginToken(responseText: string) {
+  const trimmedResponse = responseText.trim();
+
+  try {
+    const parsed = JSON.parse(trimmedResponse) as LoginResponse | string;
+
+    if (typeof parsed === 'string') {
+      return normalizeToken(parsed);
+    }
+
+    if (
+      parsed.errorState === 0 ||
+      parsed.message === 'Email is invalid' ||
+      parsed.message === 'Password is invalid'
+    ) {
+      throw new Error('Invalid email or password');
+    }
+
+    if (typeof parsed.token === 'string' && parsed.token.length > 0) {
+      return normalizeToken(parsed.token);
+    }
+
+    if (typeof parsed.message === 'string' && parsed.message.length > 0) {
+      return normalizeToken(parsed.message);
+    }
+  } catch {
+    return normalizeToken(trimmedResponse);
+  }
+
+  throw new Error('Login response did not include a token');
+}
+
 const loginUser = async ({
   email,
   password,
 }: LoginCredentials): Promise<string> => {
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-  const loginURL = `${API_BASE_URL}/api/auth/user/login/${email}/${password}`;
-  const response = await fetch(loginURL);
-  return await response.text();
+  const response = await fetch(buildApiUrl('/api/auth/user/login'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    throw new Error('Login request failed');
+  }
+
+  return parseLoginToken(responseText);
 };
 
 const LoginScreen = () => {
@@ -29,11 +84,17 @@ const LoginScreen = () => {
 
   const loginMutation = useMutation({
     mutationFn: loginUser,
-    onSuccess: (data) => {
-      verifyRes(data);
+    onSuccess: (token) => {
+      localStorage.setItem('token', token);
+      navigate('/deliveries');
     },
     onError: (err) => {
-      setError(`An error occurred. Please try again. ${err}`);
+      if (err instanceof Error) {
+        setError(err.message);
+        return;
+      }
+
+      setError('An error occurred. Please try again.');
     },
   });
 
@@ -44,18 +105,6 @@ const LoginScreen = () => {
     }
     setError('');
     loginMutation.mutate({ email, password });
-  };
-
-  const verifyRes = (data: string) => {
-    if (
-      data === '{"errorState":0,"message":"Email is invalid"}' ||
-      data === '{"errorState":0,"message":"Password is invalid"}'
-    ) {
-      setError('Invalid email or password');
-    } else {
-      localStorage.setItem('token', data);
-      navigate('/deliveries');
-    }
   };
 
   return (

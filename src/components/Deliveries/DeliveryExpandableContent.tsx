@@ -19,11 +19,40 @@ import {
   SelectValue,
 } from '../ui/select';
 import { Button } from '../ui/button';
-import { Save, Trash2 } from 'lucide-react';
+import {
+  CalendarDays,
+  ClipboardList,
+  MapPinHouse,
+  Save,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 import { ConfirmDeleteDialog } from '../DeleteDialog';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { buildApiUrl } from '@/lib/api';
+import {
+  buckIsland,
+  corollaLight,
+  crownPoint,
+  cruzBay,
+  currituckClub,
+  hijo,
+  klmpq,
+  monterayShores,
+  oceanHill,
+  pineIsland,
+  sectionA,
+  sectionB,
+  sectionC,
+  sectionD,
+  sectionE,
+  sectionF,
+  spinDrift,
+  whalehead,
+  whaleheadRight,
+} from '@/components/constants/neighborhoods';
 
 interface DeliveryExpandableContentProps {
   delivery: Delivery;
@@ -55,8 +84,33 @@ const deliverySchema = z.object({
 });
 
 export type Delivery = z.infer<typeof deliverySchema>;
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const DELETE_URL = `${API_BASE_URL}/api/delivery/delete`;
+const DELETE_URL = buildApiUrl('/api/delivery/delete');
+const sectionCardClassName =
+  'grid gap-4 rounded-2xl border border-slate-200/80 bg-linear-to-br from-white to-slate-50/80 p-4 shadow-xs';
+const sectionTitleClassName = 'flex items-center gap-2 text-sm font-semibold';
+const inputClassName =
+  'border-slate-300 bg-white shadow-xs focus-visible:ring-2 focus-visible:ring-sky-200';
+const lookupRules = [
+  { ids: sectionA, value: '7' },
+  { ids: sectionB, value: '8' },
+  { ids: sectionC, value: '9' },
+  { ids: sectionD, value: '10' },
+  { ids: sectionE, value: '11' },
+  { ids: sectionF, value: '12' },
+  { ids: hijo, value: '13' },
+  { ids: klmpq, value: '14' },
+  { ids: crownPoint, value: '15' },
+  { ids: spinDrift, value: '6' },
+  { ids: pineIsland, value: '5' },
+  { ids: buckIsland, value: '16' },
+  { ids: oceanHill, value: '1' },
+  { ids: corollaLight, value: '2' },
+  { ids: cruzBay, value: '19' },
+  { ids: whalehead, value: '3' },
+  { ids: whaleheadRight, value: '18' },
+  { ids: monterayShores, value: '17' },
+  { ids: currituckClub, value: '4' },
+] as const;
 
 export function DeliveryExpandableContent({
   delivery,
@@ -72,6 +126,18 @@ export function DeliveryExpandableContent({
     resolver: zodResolver(deliverySchema),
     defaultValues: delivery,
   });
+  const watchedAddress = form.watch('delivery_address') || '';
+
+  useEffect(() => {
+    const cleaned = watchedAddress.replace(/[^a-zA-Z]/g, '').toUpperCase();
+
+    for (const entry of lookupRules) {
+      if (entry.ids.includes(cleaned)) {
+        form.setValue('neighborhood', entry.value);
+        break;
+      }
+    }
+  }, [form, watchedAddress]);
 
   const handleSubmit = (data: Delivery) => {
     onSave(data);
@@ -126,12 +192,36 @@ export function DeliveryExpandableContent({
     return `${hour.toString().padStart(2, '0')}:${minute}`;
   }
 
+  function parseApiDateToLocalCalendarDate(value: string) {
+    const parsedDate = new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return undefined;
+    }
+
+    return new Date(
+      parsedDate.getUTCFullYear(),
+      parsedDate.getUTCMonth(),
+      parsedDate.getUTCDate(),
+    );
+  }
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
-          <div className="bg-background grid gap-4 rounded-md border p-4">
-            <h4 className="text-foreground/80 text-sm font-semibold">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">
+        <div className="rounded-xl border border-slate-200 bg-white/70 p-4">
+          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+            Edit Delivery
+          </p>
+          <p className="mt-1 text-sm text-slate-700">
+            Update values below, then save or remove this delivery.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          <div className={sectionCardClassName}>
+            <h4 className={sectionTitleClassName}>
+              <MapPinHouse className="h-4 w-4 text-sky-700" />
               Customer Info
             </h4>
             <FormField
@@ -142,7 +232,7 @@ export function DeliveryExpandableContent({
                   <FormLabel>Phone</FormLabel>
                   <FormControl>
                     <Input
-                      className="bg-white"
+                      className={inputClassName}
                       {...field}
                       onChange={(e) => {
                         const formatted = formatPhoneNumber(e.target.value);
@@ -160,7 +250,7 @@ export function DeliveryExpandableContent({
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input className="bg-white" {...field} />
+                    <Input className={inputClassName} {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -173,7 +263,7 @@ export function DeliveryExpandableContent({
                   <FormLabel>Neighborhood</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-full bg-white">
+                      <SelectTrigger className={`w-full ${inputClassName}`}>
                         <SelectValue placeholder="Select neighborhood..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -214,7 +304,7 @@ export function DeliveryExpandableContent({
                 <FormItem>
                   <FormLabel>Tip</FormLabel>
                   <FormControl>
-                    <Input className="bg-white" {...field} />
+                    <Input className={inputClassName} {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -226,14 +316,15 @@ export function DeliveryExpandableContent({
                 <FormItem>
                   <FormLabel>Special Instructions</FormLabel>
                   <FormControl>
-                    <Input className="bg-white" {...field} />
+                    <Input className={inputClassName} {...field} />
                   </FormControl>
                 </FormItem>
               )}
             />
           </div>
-          <div className="bg-background grid gap-4 rounded-md border p-4">
-            <h4 className="text-foreground/80 text-sm font-semibold">
+          <div className={sectionCardClassName}>
+            <h4 className={sectionTitleClassName}>
+              <ClipboardList className="h-4 w-4 text-sky-700" />
               Delivery Details
             </h4>
             <FormField
@@ -243,7 +334,7 @@ export function DeliveryExpandableContent({
                 <FormItem>
                   <FormLabel>Delivery Address</FormLabel>
                   <FormControl>
-                    <Input className="bg-white" {...field} />
+                    <Input className={inputClassName} {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -255,7 +346,7 @@ export function DeliveryExpandableContent({
                 <FormItem>
                   <FormLabel># Of Coolers</FormLabel>
                   <FormControl>
-                    <Input className="bg-white" {...field} />
+                    <Input className={inputClassName} {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -268,7 +359,7 @@ export function DeliveryExpandableContent({
                   <FormLabel>Cooler Size</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-full bg-white">
+                      <SelectTrigger className={`w-full ${inputClassName}`}>
                         <SelectValue placeholder="Select cooler size..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -290,7 +381,7 @@ export function DeliveryExpandableContent({
                   <FormLabel>Ice Type</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-full bg-white">
+                      <SelectTrigger className={`w-full ${inputClassName}`}>
                         <SelectValue placeholder="Select ice type..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -316,7 +407,7 @@ export function DeliveryExpandableContent({
                     <FormControl>
                       <Input
                         type="time"
-                        className="bg-white"
+                        className={inputClassName}
                         value={time24}
                         onChange={(e) => {
                           const [hourStr, minute] = e.target.value.split(':');
@@ -335,8 +426,11 @@ export function DeliveryExpandableContent({
               }}
             />
           </div>
-          <div className="bg-background grid gap-4 rounded-md border p-4">
-            <h4 className="text-foreground/80 text-sm font-semibold">Extras</h4>
+          <div className={sectionCardClassName}>
+            <h4 className={sectionTitleClassName}>
+              <Sparkles className="h-4 w-4 text-sky-700" />
+              Extras
+            </h4>
             <FormField
               control={form.control}
               name="bag_limes"
@@ -344,7 +438,7 @@ export function DeliveryExpandableContent({
                 <FormItem>
                   <FormLabel>Limes</FormLabel>
                   <FormControl>
-                    <Input className="bg-white" {...field} />
+                    <Input className={inputClassName} {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -356,7 +450,7 @@ export function DeliveryExpandableContent({
                 <FormItem>
                   <FormLabel>Oranges</FormLabel>
                   <FormControl>
-                    <Input className="bg-white" {...field} />
+                    <Input className={inputClassName} {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -368,7 +462,7 @@ export function DeliveryExpandableContent({
                 <FormItem>
                   <FormLabel>Lemons</FormLabel>
                   <FormControl>
-                    <Input className="bg-white" {...field} />
+                    <Input className={inputClassName} {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -380,7 +474,7 @@ export function DeliveryExpandableContent({
                 <FormItem>
                   <FormLabel>Freeze Pops</FormLabel>
                   <FormControl>
-                    <Input className="bg-white" {...field} />
+                    <Input className={inputClassName} {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -392,56 +486,70 @@ export function DeliveryExpandableContent({
                 <FormItem>
                   <FormLabel>Marg Salt</FormLabel>
                   <FormControl>
-                    <Input className="bg-white" {...field} />
+                    <Input className={inputClassName} {...field} />
                   </FormControl>
                 </FormItem>
               )}
             />
           </div>
-          <FormField
-            control={form.control}
-            name="start_date"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Start Date</FormLabel>
-                <FormControl>
-                  <DatePicker
-                    value={field.value ? new Date(field.value) : undefined}
-                    onChange={(date) => {
-                      if (date) {
-                        field.onChange(new Date(date).toISOString());
+          <div className={sectionCardClassName}>
+            <h4 className={sectionTitleClassName}>
+              <CalendarDays className="h-4 w-4 text-sky-700" />
+              Schedule
+            </h4>
+            <FormField
+              control={form.control}
+              name="start_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Start Date</FormLabel>
+                  <FormControl>
+                    <DatePicker
+                      value={
+                        field.value
+                          ? parseApiDateToLocalCalendarDate(field.value)
+                          : undefined
                       }
-                    }}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="end_date"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>End Date</FormLabel>
-                <FormControl>
-                  <DatePicker
-                    value={field.value ? new Date(field.value) : undefined}
-                    onChange={(date) => {
-                      if (date) {
-                        field.onChange(new Date(date).toISOString());
+                      onChange={(date) => {
+                        if (date) {
+                          field.onChange(new Date(date).toISOString());
+                        }
+                      }}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="end_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>End Date</FormLabel>
+                  <FormControl>
+                    <DatePicker
+                      value={
+                        field.value
+                          ? parseApiDateToLocalCalendarDate(field.value)
+                          : undefined
                       }
-                    }}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
+                      onChange={(date) => {
+                        if (date) {
+                          field.onChange(new Date(date).toISOString());
+                        }
+                      }}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-2 flex flex-col justify-end gap-2 border-t border-slate-200 pt-4 sm:flex-row">
           <Button
             type="submit"
             variant="outline"
-            className="flex items-center gap-2"
+            className="w-full border-slate-300 bg-white sm:w-auto"
           >
             <Save size={16} /> Save
           </Button>
@@ -452,7 +560,7 @@ export function DeliveryExpandableContent({
               e.stopPropagation();
               confirmDelete(delivery.id);
             }}
-            className="flex items-center gap-2"
+            className="w-full sm:w-auto"
           >
             <Trash2 size={16} /> Delete
           </Button>
