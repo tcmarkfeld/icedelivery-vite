@@ -17,5 +17,4 @@ A modern React + TypeScript web application for managing seasonal ice cooler del
 - **Frontend**: React + TypeScript
 - **UI Library**: [ShadCN UI](https://ui.shadcn.com/)
 - **Form Validation**: React Hook Form + Zod
-- **API**: REST API (`https://ice-delivery.fly.dev`)
 - **Icons**: [Lucide](https://lucide.dev/)
