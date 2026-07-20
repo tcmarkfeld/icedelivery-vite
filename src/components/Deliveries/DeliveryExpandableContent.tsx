@@ -77,7 +77,10 @@ const deliverySchema = z.object({
   bag_lemons: z.string(),
   marg_salt: z.string(),
   freeze_pops: z.string(),
-  tip: z.string(),
+  tip: z
+    .string()
+    .min(1, 'Tip is required')
+    .regex(/^\d+(\.\d{1,2})?$/, 'Tip must be a valid dollar amount'),
   deliverytime: z.string(),
   dayornight: z.string(),
   special_instructions: z.string(),
@@ -304,8 +307,16 @@ export function DeliveryExpandableContent({
                 <FormItem>
                   <FormLabel>Tip</FormLabel>
                   <FormControl>
-                    <Input className={inputClassName} {...field} />
+                    <Input
+                      type="number"
+                      step="1"
+                      min={0}
+                      required
+                      className={inputClassName}
+                      {...field}
+                    />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />

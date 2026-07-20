@@ -159,6 +159,7 @@ const formSchema = z
     coolerNum: z.string(),
     tip: z
       .string()
+      .min(1, 'Tip is required')
       .regex(/^\d+(\.\d{1,2})?$/, 'Tip must be a valid dollar amount'),
     customerEmail: z.string().optional(),
     limes: z.string(),
@@ -504,8 +505,9 @@ function AddDelivery() {
                         <FormControl>
                           <Input
                             type="number"
-                            step="0.01"
+                            step="1"
                             min={0}
+                            required
                             {...field}
                             className={formInputClassName}
                           />
