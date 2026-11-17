@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import logo from '@/assets/ice-delivery.webp';
@@ -62,7 +63,7 @@ const loginUser = async ({
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Accept: 'application/json',
+      'Accept': 'application/json',
     },
     body: JSON.stringify({ email, password }),
   });
@@ -98,7 +99,8 @@ const LoginScreen = () => {
     },
   });
 
-  const loginAdmin = () => {
+  const loginAdmin = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     if (!email || !password) {
       setError('You must fill in all fields');
       return;
@@ -108,43 +110,57 @@ const LoginScreen = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md p-6">
-        <CardHeader>
-          <CardTitle className="flex flex-col items-center justify-center text-center text-2xl">
-            <img src={logo} height={100} width={65} /> Corolla Ice Delivery
-            Login
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            id="email-field"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <Input
-            id="password-field"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <img src={logo} alt="" className="mb-4 h-14 w-14 object-contain" />
+          <h1 className="text-xl font-semibold tracking-tight">
+            Corolla Ice Delivery
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Sign in to manage deliveries
+          </p>
+        </div>
+        <form
+          onSubmit={loginAdmin}
+          className="space-y-4 rounded-xl border bg-white p-6 shadow-sm"
+        >
+          <div className="space-y-2">
+            <Label htmlFor="email-field">Email</Label>
+            <Input
+              id="email-field"
+              type="email"
+              autoComplete="email"
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password-field">Password</Label>
+            <Input
+              id="password-field"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
           {error && (
-            <p id="error-msg" className="text-center text-sm text-red-500">
+            <p id="error-msg" className="text-destructive text-sm">
               {error}
             </p>
           )}
           <Button
+            type="submit"
             className="w-full"
-            onClick={loginAdmin}
             disabled={loginMutation.isPending}
           >
-            {loginMutation.isPending ? 'Logging in...' : 'Login'}
+            {loginMutation.isPending && <Loader2 className="animate-spin" />}
+            {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
           </Button>
-        </CardContent>
-      </Card>
+        </form>
+      </div>
     </div>
   );
 };

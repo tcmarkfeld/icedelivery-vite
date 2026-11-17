@@ -6,7 +6,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import z from 'zod';
 import { Input } from '../ui/input';
@@ -19,14 +19,7 @@ import {
   SelectValue,
 } from '../ui/select';
 import { Button } from '../ui/button';
-import {
-  CalendarDays,
-  ClipboardList,
-  MapPinHouse,
-  Save,
-  Sparkles,
-  Trash2,
-} from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 import { ConfirmDeleteDialog } from '../DeleteDialog';
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -56,7 +49,7 @@ import {
 
 interface DeliveryExpandableContentProps {
   delivery: Delivery;
-  onSave: (data: Delivery) => void;
+  onSave: (data: Delivery) => Promise<void>;
 }
 
 const deliverySchema = z.object({
@@ -88,11 +81,10 @@ const deliverySchema = z.object({
 
 export type Delivery = z.infer<typeof deliverySchema>;
 const DELETE_URL = buildApiUrl('/api/delivery/delete');
-const sectionCardClassName =
-  'grid gap-4 rounded-2xl border border-slate-200/80 bg-linear-to-br from-white to-slate-50/80 p-4 shadow-xs';
-const sectionTitleClassName = 'flex items-center gap-2 text-sm font-semibold';
-const inputClassName =
-  'border-slate-300 bg-white shadow-xs focus-visible:ring-2 focus-visible:ring-sky-200';
+const sectionCardClassName = 'grid content-start gap-3';
+const sectionTitleClassName =
+  'text-muted-foreground text-xs font-medium tracking-wide uppercase';
+const inputClassName = 'bg-white';
 const lookupRules = [
   { ids: sectionA, value: '7' },
   { ids: sectionB, value: '8' },
@@ -129,7 +121,8 @@ export function DeliveryExpandableContent({
     resolver: zodResolver(deliverySchema),
     defaultValues: delivery,
   });
-  const watchedAddress = form.watch('delivery_address') || '';
+  const watchedAddress =
+    useWatch({ control: form.control, name: 'delivery_address' }) || '';
 
   useEffect(() => {
     const cleaned = watchedAddress.replace(/[^a-zA-Z]/g, '').toUpperCase();
@@ -143,7 +136,7 @@ export function DeliveryExpandableContent({
   }, [form, watchedAddress]);
 
   const handleSubmit = (data: Delivery) => {
-    onSave(data);
+    return onSave(data);
   };
 
   const confirmDelete = (id: number) => {
@@ -211,22 +204,10 @@ export function DeliveryExpandableContent({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">
-        <div className="rounded-xl border border-slate-200 bg-white/70 p-4">
-          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-            Edit Delivery
-          </p>
-          <p className="mt-1 text-sm text-slate-700">
-            Update values below, then save or remove this delivery.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-4">
           <div className={sectionCardClassName}>
-            <h4 className={sectionTitleClassName}>
-              <MapPinHouse className="h-4 w-4 text-sky-700" />
-              Customer Info
-            </h4>
+            <h4 className={sectionTitleClassName}>Customer Info</h4>
             <FormField
               control={form.control}
               name="customer_phone"
@@ -334,10 +315,7 @@ export function DeliveryExpandableContent({
             />
           </div>
           <div className={sectionCardClassName}>
-            <h4 className={sectionTitleClassName}>
-              <ClipboardList className="h-4 w-4 text-sky-700" />
-              Delivery Details
-            </h4>
+            <h4 className={sectionTitleClassName}>Delivery Details</h4>
             <FormField
               control={form.control}
               name="delivery_address"
@@ -438,10 +416,7 @@ export function DeliveryExpandableContent({
             />
           </div>
           <div className={sectionCardClassName}>
-            <h4 className={sectionTitleClassName}>
-              <Sparkles className="h-4 w-4 text-sky-700" />
-              Extras
-            </h4>
+            <h4 className={sectionTitleClassName}>Extras</h4>
             <FormField
               control={form.control}
               name="bag_limes"
@@ -504,10 +479,7 @@ export function DeliveryExpandableContent({
             />
           </div>
           <div className={sectionCardClassName}>
-            <h4 className={sectionTitleClassName}>
-              <CalendarDays className="h-4 w-4 text-sky-700" />
-              Schedule
-            </h4>
+            <h4 className={sectionTitleClassName}>Schedule</h4>
             <FormField
               control={form.control}
               name="start_date"
@@ -556,25 +528,34 @@ export function DeliveryExpandableContent({
             />
           </div>
         </div>
-        <div className="mt-2 flex flex-col justify-end gap-2 border-t border-slate-200 pt-4 sm:flex-row">
+        <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-between">
           <Button
-            type="submit"
-            variant="outline"
-            className="w-full border-slate-300 bg-white sm:w-auto"
-          >
-            <Save size={16} /> Save
-          </Button>
-          <Button
-            variant="destructive"
+            variant="ghost"
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               confirmDelete(delivery.id);
             }}
-            className="w-full sm:w-auto"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
-            <Trash2 size={16} /> Delete
+            <Trash2 /> Delete delivery
           </Button>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => form.reset()}
+              disabled={!form.formState.isDirty}
+            >
+              Discard changes
+            </Button>
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting && (
+                <Loader2 className="animate-spin" />
+              )}
+              Save changes
+            </Button>
+          </div>
         </div>
       </form>
       <ConfirmDeleteDialog

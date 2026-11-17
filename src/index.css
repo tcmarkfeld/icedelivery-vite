@@ -4,27 +4,27 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(97.015% 0.00011 271.152);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.985 0.003 240);
+  --foreground: oklch(0.2 0.02 250);
   --background-fp: oklch(89.578% 0.08962 211.811);
   --background-fp-foreground: oklch(0 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(82.669% 0.14279 214.491);
-  --primary-foreground: oklch(0 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(82.336% 0.12368 221.629);
-  --accent-foreground: oklch(0 0 0);
+  --primary: oklch(0.47 0.13 245);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.965 0.006 240);
+  --secondary-foreground: oklch(0.25 0.02 250);
+  --muted: oklch(0.965 0.006 240);
+  --muted-foreground: oklch(0.52 0.02 250);
+  --accent: oklch(0.955 0.02 240);
+  --accent-foreground: oklch(0.3 0.08 245);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.92 0.006 240);
+  --input: oklch(0.89 0.008 240);
+  --ring: oklch(0.47 0.13 245);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -134,32 +134,8 @@
   }
 }
 
-header,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: 'Sentient', sans-serif;
-}
 body {
-  @apply bg-background text-foreground;
-  font-family: 'Inter', sans-serif;
-  font-size: 16px;
-}
-
-h1 {
-  @apply text-3xl;
-  font-family: 'Sentient', sans-serif;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
 }

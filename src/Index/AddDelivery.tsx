@@ -1,8 +1,8 @@
 import '../App.css';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, type ReactNode } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import {
   Form,
   FormControl,
@@ -11,13 +11,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TimePicker } from '@/components/TimePicker';
@@ -52,13 +45,7 @@ import {
 } from '@/components/constants/neighborhoods';
 import { toast } from 'sonner';
 import { buildApiUrl } from '@/lib/api';
-import {
-  CalendarDays,
-  GlassWater,
-  MapPinHouse,
-  PackagePlus,
-  UserRound,
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 const EXTRA_FIELD_KEYS = {
   Limes: 'limes',
@@ -127,13 +114,27 @@ const lookupRules = [
   { ids: currituckClub, value: '4' },
 ] as const;
 
-const formSectionClassName =
-  'rounded-2xl border border-slate-200/80 bg-linear-to-br from-white to-slate-50/80 p-4 shadow-xs sm:p-5 md:p-6';
-const formInputClassName =
-  'border-slate-300 bg-white shadow-xs focus-visible:ring-2 focus-visible:ring-sky-200';
-const sectionTitleClassName =
-  'flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-800 uppercase';
-const sectionDescriptionClassName = 'mt-1 text-xs text-slate-500';
+const formInputClassName = 'bg-white';
+
+function FormSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="grid gap-4 py-6 first:pt-0 md:grid-cols-[200px_1fr] md:gap-8">
+      <div>
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <p className="text-muted-foreground mt-1 text-sm">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 const formSchema = z
   .object({
@@ -247,7 +248,8 @@ function AddDelivery() {
     },
   });
 
-  const watchedAddress = form.watch('deliveryAddress') || '';
+  const watchedAddress =
+    useWatch({ control: form.control, name: 'deliveryAddress' }) || '';
 
   useEffect(() => {
     const cleaned = watchedAddress.replace(/[^a-zA-Z]/g, '').toUpperCase();
@@ -260,450 +262,438 @@ function AddDelivery() {
     }
   }, [form, watchedAddress]);
 
-  function onSubmit(values: FormValues) {
+  async function onSubmit(values: FormValues) {
     const token = localStorage.getItem('token');
     const { deliveryTimeFormatted, dayOrNight } = formatDeliveryTime(
       values.deliveryTime || '',
     );
 
-    fetch(buildApiUrl('/api/delivery/add'), {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'auth-token': token || '',
-      },
-      body: JSON.stringify({
-        delivery_address: values.deliveryAddress,
-        customer_name: values.customerName,
-        customer_phone: values.phone,
-        customer_email: values.customerEmail,
-        start_date: new Date(values.startDate),
-        end_date: new Date(values.endDate),
-        special_instructions: values.specialInstructions || '',
-        cooler_size: values.coolerSize,
-        ice_type: values.iceType,
-        neighborhood: values.neighborhood,
-        cooler_num: values.coolerNum,
-        bag_limes: values.limes,
-        bag_lemons: values.lemons,
-        bag_oranges: values.oranges,
-        marg_salt: values.margSalt,
-        freeze_pops: values.freezePops,
-        tip: values.tip,
-        deliverytime: deliveryTimeFormatted,
-        dayornight: dayOrNight,
-      }),
-    }).then((res) => {
+    try {
+      const res = await fetch(buildApiUrl('/api/delivery/add'), {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'auth-token': token || '',
+        },
+        body: JSON.stringify({
+          delivery_address: values.deliveryAddress,
+          customer_name: values.customerName,
+          customer_phone: values.phone,
+          customer_email: values.customerEmail,
+          start_date: new Date(values.startDate),
+          end_date: new Date(values.endDate),
+          special_instructions: values.specialInstructions || '',
+          cooler_size: values.coolerSize,
+          ice_type: values.iceType,
+          neighborhood: values.neighborhood,
+          cooler_num: values.coolerNum,
+          bag_limes: values.limes,
+          bag_lemons: values.lemons,
+          bag_oranges: values.oranges,
+          marg_salt: values.margSalt,
+          freeze_pops: values.freezePops,
+          tip: values.tip,
+          deliverytime: deliveryTimeFormatted,
+          dayornight: dayOrNight,
+        }),
+      });
+
       if (res.status === 200) {
         toast.success('Delivery added successfully');
         form.reset();
       } else {
         toast.error(`Failed to add delivery: ${res.statusText}`);
       }
-    });
+    } catch {
+      toast.error('Failed to add delivery. Check your connection.');
+    }
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-1 pb-10 sm:px-0">
-      <div className="mb-6 rounded-2xl border border-sky-200/70 bg-linear-to-r from-cyan-50 via-sky-50 to-blue-100 p-5 sm:p-6">
-        <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-          Add Delivery
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-700 sm:text-base">
-          Add all customer information to save the delivery.
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight">New Delivery</h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Enter the customer and order details to schedule a delivery.
         </p>
       </div>
 
-      <Card className="overflow-hidden border-sky-100 bg-white/85 shadow-lg shadow-sky-900/5">
-        <CardHeader className="border-b border-slate-200/70 bg-slate-50/70">
-          <CardTitle className="text-xl text-slate-900">Delivery Form</CardTitle>
-          <CardDescription className="text-sm text-slate-600">
-            Required fields are validated before a delivery can be saved.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <section className={formSectionClassName}>
-                <div className="mb-4">
-                  <h2 className={sectionTitleClassName}>
-                    <UserRound className="h-4 w-4 text-sky-700" />
-                    Customer
-                  </h2>
-                  <p className={sectionDescriptionClassName}>
-                    Primary contact and phone details.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="customerName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Customer Name</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Pat Lewis"
-                            {...field}
-                            className={formInputClassName}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="(000) 000-0000"
-                            {...field}
-                            className={formInputClassName}
-                            value={field.value}
-                            onChange={(e) => {
-                              field.onChange(formatPhoneNumber(e.target.value));
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </section>
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="rounded-xl border bg-white shadow-sm"
+        >
+          <div className="divide-y px-4 pt-6 sm:px-6">
+            <FormSection
+              title="Customer"
+              description="Who the delivery is for."
+            >
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="customerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Pat Lewis"
+                          {...field}
+                          className={formInputClassName}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="tel"
+                          placeholder="(000) 000-0000"
+                          {...field}
+                          className={formInputClassName}
+                          onChange={(e) => {
+                            field.onChange(formatPhoneNumber(e.target.value));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="customerEmail"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>
+                        Email{' '}
+                        <span className="text-muted-foreground font-normal">
+                          (optional)
+                        </span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="example@gmail.com"
+                          {...field}
+                          className={formInputClassName}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </FormSection>
 
-              <section className={formSectionClassName}>
-                <div className="mb-4">
-                  <h2 className={sectionTitleClassName}>
-                    <MapPinHouse className="h-4 w-4 text-sky-700" />
-                    Location
-                  </h2>
-                  <p className={sectionDescriptionClassName}>
-                    Delivery destination and neighborhood mapping.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="deliveryAddress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Delivery Address</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="123 Main St"
-                            {...field}
-                            className={formInputClassName}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="neighborhood"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Neighborhood</FormLabel>
-                        <FormControl>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger
-                              className={`w-full ${formInputClassName}`}
-                            >
-                              <SelectValue placeholder="Select neighborhood..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {neighborhoodOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </section>
+            <FormSection
+              title="Location"
+              description="Neighborhood fills in automatically from the street name."
+            >
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="deliveryAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="123 Main St"
+                          {...field}
+                          className={formInputClassName}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="neighborhood"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Neighborhood</FormLabel>
+                      <FormControl>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger
+                            className={`w-full ${formInputClassName}`}
+                          >
+                            <SelectValue placeholder="Select neighborhood..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {neighborhoodOptions.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </FormSection>
 
-              <section className={formSectionClassName}>
-                <div className="mb-4">
-                  <h2 className={sectionTitleClassName}>
-                    <CalendarDays className="h-4 w-4 text-sky-700" />
-                    Schedule and Billing
-                  </h2>
-                  <p className={sectionDescriptionClassName}>
-                    Set date range, drop-off time, and gratuity.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                  <FormField
-                    control={form.control}
-                    name="startDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Start Date</FormLabel>
-                        <FormControl>
-                          <DatePicker
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Select start date"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="endDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>End Date</FormLabel>
-                        <FormControl>
-                          <DatePicker
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Select end date"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="deliveryTime"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Delivery Time</FormLabel>
-                        <FormControl>
-                          <TimePicker
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Select delivery time"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="tip"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tip ($)</FormLabel>
-                        <FormControl>
+            <FormSection
+              title="Schedule"
+              description="Rental dates and drop-off time."
+            >
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start date</FormLabel>
+                      <FormControl>
+                        <DatePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select start date"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>End date</FormLabel>
+                      <FormControl>
+                        <DatePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select end date"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="deliveryTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Delivery time</FormLabel>
+                      <FormControl>
+                        <TimePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select delivery time"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </FormSection>
+
+            <FormSection title="Order" description="Coolers, ice, and tip.">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <FormField
+                  control={form.control}
+                  name="coolerSize"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cooler size</FormLabel>
+                      <FormControl>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger
+                            className={`w-full ${formInputClassName}`}
+                          >
+                            <SelectValue placeholder="Select..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="40 Quart">40 Quart</SelectItem>
+                            <SelectItem value="62 Quart">62 Quart</SelectItem>
+                            <SelectItem value="200 Quart">200 Quart</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="iceType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ice type</FormLabel>
+                      <FormControl>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger
+                            className={`w-full ${formInputClassName}`}
+                          >
+                            <SelectValue placeholder="Select..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Loose ice">Loose</SelectItem>
+                            <SelectItem value="Bagged ice">Bagged</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="coolerNum"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Coolers</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          {...field}
+                          className={formInputClassName}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="tip"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tip</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm">
+                            $
+                          </span>
                           <Input
                             type="number"
                             step="1"
                             min={0}
                             required
                             {...field}
-                            className={formInputClassName}
+                            className={`pl-6 ${formInputClassName}`}
                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </section>
-
-              <section className={formSectionClassName}>
-                <div className="mb-4">
-                  <h2 className={sectionTitleClassName}>
-                    <PackagePlus className="h-4 w-4 text-sky-700" />
-                    Cooler Setup
-                  </h2>
-                  <p className={sectionDescriptionClassName}>
-                    Cooler size, type, and quantity.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <FormField
-                    control={form.control}
-                    name="coolerSize"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cooler Size</FormLabel>
-                        <FormControl>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger
-                              className={`w-full ${formInputClassName}`}
-                            >
-                              <SelectValue placeholder="Select cooler size..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="40 Quart">40 Quart</SelectItem>
-                              <SelectItem value="62 Quart">62 Quart</SelectItem>
-                              <SelectItem value="200 Quart">200 Quart</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="iceType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ice Type</FormLabel>
-                        <FormControl>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger
-                              className={`w-full ${formInputClassName}`}
-                            >
-                              <SelectValue placeholder="Select ice type..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Loose ice">Loose</SelectItem>
-                              <SelectItem value="Bagged ice">Bagged</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="coolerNum"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Number of Coolers</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min={0}
-                            {...field}
-                            className={formInputClassName}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </section>
-
-              <section className={formSectionClassName}>
-                <div className="mb-4">
-                  <h2 className={sectionTitleClassName}>
-                    <GlassWater className="h-4 w-4 text-sky-700" />
-                    Extras
-                  </h2>
-                  <p className={sectionDescriptionClassName}>
-                    Optional add-ons and party supplies.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-                  {(Object.values(EXTRA_FIELD_KEYS) as ExtraFieldKey[]).map(
-                    (fieldKey) => (
-                      <FormField
-                        key={fieldKey}
-                        control={form.control}
-                        name={fieldKey as FormFieldName}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{extraFieldLabelMap[fieldKey]}</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="0"
-                                {...field}
-                                className={formInputClassName}
-                                value={
-                                  typeof field.value === 'number' ||
-                                  typeof field.value === 'string'
-                                    ? field.value
-                                    : field.value !== undefined
-                                      ? String(field.value)
-                                      : ''
-                                }
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ),
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </div>
-              </section>
-
-              <section className={formSectionClassName}>
-                <div className="mb-4">
-                  <h2 className={sectionTitleClassName}>Final Notes</h2>
-                  <p className={sectionDescriptionClassName}>
-                    Add an email and any delivery instructions.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="customerEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="example@gmail.com"
-                            {...field}
-                            className={formInputClassName}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="specialInstructions"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Special Instructions</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="e.g., leave by back door"
-                            {...field}
-                            className={formInputClassName}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </section>
-
-              <div className="flex flex-col justify-end gap-3 border-t border-slate-200 pt-4 sm:flex-row">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => form.reset()}
-                >
-                  Reset
-                </Button>
-                <Button type="submit" className="w-full sm:w-auto">
-                  Save Delivery
-                </Button>
+                />
               </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+            </FormSection>
+
+            <FormSection
+              title="Extras"
+              description="Bags of fruit and add-ons."
+            >
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+                {(Object.values(EXTRA_FIELD_KEYS) as ExtraFieldKey[]).map(
+                  (fieldKey) => (
+                    <FormField
+                      key={fieldKey}
+                      control={form.control}
+                      name={fieldKey as FormFieldName}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{extraFieldLabelMap[fieldKey]}</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={0}
+                              placeholder="0"
+                              {...field}
+                              className={formInputClassName}
+                              value={
+                                typeof field.value === 'number' ||
+                                typeof field.value === 'string'
+                                  ? field.value
+                                  : field.value !== undefined
+                                    ? String(field.value)
+                                    : ''
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ),
+                )}
+              </div>
+            </FormSection>
+
+            <FormSection
+              title="Notes"
+              description="Anything the driver should know."
+            >
+              <FormField
+                control={form.control}
+                name="specialInstructions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Special instructions</FormLabel>
+                    <FormControl>
+                      <textarea
+                        rows={3}
+                        placeholder="e.g., leave by back door"
+                        {...field}
+                        className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-md border bg-white px-3 py-2 text-base shadow-xs outline-none focus-visible:ring-[3px] md:text-sm"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </FormSection>
+          </div>
+
+          <div className="sticky bottom-0 flex flex-col-reverse justify-end gap-2 rounded-b-xl border-t bg-white/90 px-4 py-4 backdrop-blur sm:flex-row sm:px-6">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => form.reset()}
+              disabled={form.formState.isSubmitting}
+            >
+              Clear form
+            </Button>
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting && (
+                <Loader2 className="animate-spin" />
+              )}
+              Save delivery
+            </Button>
+          </div>
+        </form>
+      </Form>
     </div>
   );
 }

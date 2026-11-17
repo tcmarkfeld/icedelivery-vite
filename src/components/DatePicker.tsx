@@ -27,13 +27,13 @@ export function DatePicker({
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="w-full justify-start text-left font-normal"
+          className="border-input w-full justify-start px-3 text-left font-normal hover:bg-white"
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
+          <CalendarIcon className="text-muted-foreground" />
           {value && !isNaN(value.getTime()) ? (
             format(value, 'PPP')
           ) : (
-            <span>{placeholder}</span>
+            <span className="text-muted-foreground">{placeholder}</span>
           )}
         </Button>
       </PopoverTrigger>

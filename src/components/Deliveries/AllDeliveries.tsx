@@ -1,25 +1,17 @@
 import React from 'react';
-import { format } from 'date-fns';
+import { format, startOfToday } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   Download,
-  ListFilter,
+  Loader2,
   RefreshCw,
   Search,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -34,13 +26,14 @@ import {
   type Delivery,
 } from './DeliveryExpandableContent';
 import { buildApiUrl } from '@/lib/api';
+import { cn } from '@/lib/utils';
 
 const API_URL = buildApiUrl('/api/delivery/getall');
 const UPDATE_URL = buildApiUrl('/api/delivery/edit');
 const LAST_YEAR_DELIVERIES_URL = buildApiUrl('/api/delivery/getlastyear');
 const ITEMS_PER_PAGE = 25;
-const tableHeaderClassName =
-  'bg-slate-100/90 text-[11px] font-semibold tracking-wide text-slate-600 uppercase';
+const DATE_FILTERS = ['upcoming', 'past', 'all'] as const;
+type DateFilter = (typeof DATE_FILTERS)[number];
 
 function formatDeliveryTime(deliveryTime: string) {
   if (!deliveryTime) {
@@ -67,15 +60,28 @@ function formatDeliveryTime(deliveryTime: string) {
   };
 }
 
-function formatDisplayDate(dateValue: string) {
+// API dates come back one day behind; shift forward to the intended calendar day.
+function toDisplayDate(dateValue: string) {
   const parsedDate = new Date(dateValue);
 
   if (Number.isNaN(parsedDate.getTime())) {
-    return 'Invalid date';
+    return null;
   }
 
-  const correctedDate = new Date(parsedDate.getTime() + 24 * 60 * 60 * 1000);
-  return format(correctedDate, 'PPP');
+  return new Date(parsedDate.getTime() + 24 * 60 * 60 * 1000);
+}
+
+function formatDisplayDate(dateValue: string) {
+  const date = toDisplayDate(dateValue);
+  return date ? format(date, 'MMM d') : 'Invalid date';
+}
+
+function matchesDateFilter(row: Delivery, filter: DateFilter) {
+  if (filter === 'all') return true;
+  const end = toDisplayDate(row.end_date);
+  if (!end) return true;
+  const isUpcoming = end >= startOfToday();
+  return filter === 'upcoming' ? isUpcoming : !isUpcoming;
 }
 
 function escapeCsvValue(value: unknown): string {
@@ -131,6 +137,7 @@ function getErrorMessage(error: unknown) {
 export default function AllDeliveriesTable() {
   const [expandedRow, setExpandedRow] = React.useState<number | null>(null);
   const [globalFilter, setGlobalFilter] = React.useState('');
+  const [dateFilter, setDateFilter] = React.useState<DateFilter>('all');
   const [page, setPage] = React.useState(0);
   const queryClient = useQueryClient();
 
@@ -207,9 +214,14 @@ export default function AllDeliveriesTable() {
     }
   };
 
-  const filteredData =
-    data?.filter((row: Delivery) =>
-      row.customer_name.toLowerCase().includes(globalFilter.toLowerCase()),
+  const search = globalFilter.trim().toLowerCase();
+  const filteredData: Delivery[] =
+    data?.filter(
+      (row: Delivery) =>
+        matchesDateFilter(row, dateFilter) &&
+        [row.customer_name, row.delivery_address, row.customer_phone].some(
+          (value) => value?.toLowerCase().includes(search),
+        ),
     ) || [];
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
@@ -225,196 +237,216 @@ export default function AllDeliveriesTable() {
 
   if (isPending) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-1 pb-10 sm:px-0">
-        <Card className="border-sky-100 bg-white/85 p-10 text-center shadow-lg shadow-sky-900/5">
-          Loading deliveries...
-        </Card>
+      <div className="text-muted-foreground flex items-center justify-center gap-2 py-24 text-sm">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading deliveries...
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-1 pb-10 sm:px-0">
-        <Card className="border-red-200 bg-red-50/80 p-10 text-center text-red-600">
-          Error loading deliveries: {getErrorMessage(error)}
-        </Card>
+      <div className="border-destructive/30 bg-destructive/5 text-destructive rounded-xl border p-8 text-center text-sm">
+        Error loading deliveries: {getErrorMessage(error)}
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-1 pb-10 sm:px-0">
-      <div className="mb-6 rounded-2xl border border-sky-200/70 bg-linear-to-r from-cyan-50 via-sky-50 to-blue-100 p-5 sm:p-6">
-        <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-          All Deliveries
-        </h1>
-        <p className="mt-2 text-sm text-slate-700 sm:text-base">
-          Review, edit, export, and manage the full delivery schedule.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium sm:text-sm">
-          <span className="rounded-full bg-white/70 px-3 py-1 text-slate-700">
-            Total: {data?.length ?? 0}
-          </span>
-          <span className="rounded-full bg-white/70 px-3 py-1 text-slate-700">
-            Filtered: {filteredData.length}
-          </span>
-          <span className="rounded-full bg-white/70 px-3 py-1 text-slate-700">
-            Per page: {ITEMS_PER_PAGE}
-          </span>
+    <div>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Deliveries</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {data?.length ?? 0} total. Click a row to view or edit.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label="Refresh"
+            title="Refresh"
+          >
+            <RefreshCw className={cn(isFetching && 'animate-spin')} />
+          </Button>
+          <Button variant="outline" onClick={downloadLastYearDeliveriesCSV}>
+            <Download />
+            Last year CSV
+          </Button>
         </div>
       </div>
 
-      <Card className="overflow-hidden border-sky-100 bg-white/85 shadow-lg shadow-sky-900/5">
-        <CardHeader className="gap-4 border-b border-slate-200/70 bg-slate-50/70">
-          <div>
-            <CardTitle className="text-xl text-slate-900">Deliveries Table</CardTitle>
-            <CardDescription className="text-sm text-slate-600">
-              Click a row to expand details, edit fields, or delete a delivery.
-            </CardDescription>
+      <div className="rounded-xl border bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <Input
+              placeholder="Search name, address, phone"
+              value={globalFilter}
+              onChange={(e) => {
+                setGlobalFilter(e.target.value);
+                setPage(0);
+              }}
+              className="pl-9"
+            />
           </div>
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-sm">
-              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-              <Input
-                placeholder="Search by customer name..."
-                value={globalFilter}
-                onChange={(e) => {
-                  setGlobalFilter(e.target.value);
+          <div className="bg-muted inline-flex rounded-lg p-1">
+            {DATE_FILTERS.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => {
+                  setDateFilter(filter);
                   setPage(0);
                 }}
-                className="border-slate-300 bg-white pl-9"
-              />
-            </div>
-            <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-              <Button
-                variant="outline"
-                onClick={() => refetch()}
-                disabled={isFetching}
-                className="w-full border-slate-300 bg-white md:w-auto"
+                className={cn(
+                  'rounded-md px-3 py-1 text-sm font-medium capitalize transition-colors',
+                  dateFilter === filter
+                    ? 'bg-white shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
               >
-                <RefreshCw
-                  className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
-                />
-                Refresh
-              </Button>
-              <Button
-                variant="outline"
-                onClick={downloadLastYearDeliveriesCSV}
-                className="w-full border-slate-300 bg-white md:w-auto"
-              >
-                <Download className="h-4 w-4" />
-                Download Last Year CSV
-              </Button>
-            </div>
+                {filter}
+              </button>
+            ))}
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="p-4 sm:p-6">
-          {emptySearchResult ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-600">
-              No deliveries found for that search.
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-slate-200">
-              <div className="overflow-x-auto">
-                <Table className="min-w-[860px]">
-                  <TableHeader>
-                    <TableRow className={tableHeaderClassName}>
-                      <TableHead className="w-10"></TableHead>
-                      <TableHead>Start Date</TableHead>
-                      <TableHead>End Date</TableHead>
-                      <TableHead>Delivery Address</TableHead>
-                      <TableHead>Customer Name</TableHead>
-                      <TableHead>Cooler Size</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedData.map((row: Delivery, index: number) => {
-                      const isExpanded = expandedRow === row.id;
-                      const rowClassName =
-                        index % 2 === 0
-                          ? 'cursor-pointer bg-white hover:bg-sky-50/70'
-                          : 'cursor-pointer bg-slate-50/40 hover:bg-sky-50/70';
+        {emptySearchResult ? (
+          <div className="text-muted-foreground p-12 text-center text-sm">
+            No deliveries match these filters.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="text-muted-foreground hover:bg-transparent [&>th]:text-xs [&>th]:font-medium">
+                <TableHead className="pl-4">Dates</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead className="hidden md:table-cell">Address</TableHead>
+                <TableHead className="hidden lg:table-cell">Order</TableHead>
+                <TableHead className="hidden sm:table-cell">Time</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedData.map((row) => {
+                const isExpanded = expandedRow === row.id;
+                const toggle = () => setExpandedRow(isExpanded ? null : row.id);
 
-                      return (
-                        <React.Fragment key={row.id}>
-                          <TableRow
-                            onClick={() => setExpandedRow(isExpanded ? null : row.id)}
-                            className={rowClassName}
-                          >
-                            <TableCell className="w-10">
-                              {isExpanded ? (
-                                <ChevronUp size={16} />
-                              ) : (
-                                <ChevronDown size={16} />
-                              )}
-                            </TableCell>
-                            <TableCell className="text-start">
-                              {formatDisplayDate(row.start_date)}
-                            </TableCell>
-                            <TableCell className="text-start">
-                              {formatDisplayDate(row.end_date)}
-                            </TableCell>
-                            <TableCell className="text-start">
-                              {row.delivery_address}
-                            </TableCell>
-                            <TableCell className="text-start font-medium text-slate-900">
-                              {row.customer_name}
-                            </TableCell>
-                            <TableCell className="text-start text-slate-700">
-                              {row.cooler_size}
-                            </TableCell>
-                          </TableRow>
-                          {isExpanded && (
-                            <TableRow className="bg-slate-50/70">
-                              <TableCell colSpan={6} className="p-4">
-                                <DeliveryExpandableContent
-                                  delivery={row}
-                                  onSave={handleSave}
-                                />
-                              </TableCell>
-                            </TableRow>
+                return (
+                  <React.Fragment key={row.id}>
+                    <TableRow
+                      onClick={toggle}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggle();
+                        }
+                      }}
+                      tabIndex={0}
+                      aria-expanded={isExpanded}
+                      className={cn(
+                        'focus-visible:bg-accent/60 cursor-pointer outline-none',
+                        isExpanded &&
+                          'bg-accent/60 hover:bg-accent/60 border-b-0',
+                      )}
+                    >
+                      <TableCell className="py-3 pl-4 font-medium tabular-nums">
+                        {formatDisplayDate(row.start_date)}
+                        <span className="text-muted-foreground"> – </span>
+                        {formatDisplayDate(row.end_date)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{row.customer_name}</div>
+                        <div className="text-muted-foreground text-xs tabular-nums">
+                          {row.customer_phone}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <div>{row.delivery_address}</div>
+                        {row.neighborhood_name && (
+                          <div className="text-muted-foreground text-xs">
+                            {row.neighborhood_name}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        <div className="capitalize">
+                          {row.cooler_num} × {row.cooler_size?.toLowerCase()}
+                        </div>
+                        <div className="text-muted-foreground text-xs capitalize">
+                          {row.ice_type?.toLowerCase()}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground hidden tabular-nums sm:table-cell">
+                        {row.deliverytime
+                          ? `${row.deliverytime} ${row.dayornight}`
+                          : '–'}
+                      </TableCell>
+                      <TableCell className="pr-4">
+                        <ChevronDown
+                          className={cn(
+                            'text-muted-foreground h-4 w-4 transition-transform',
+                            isExpanded && 'rotate-180',
                           )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
+                        />
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && (
+                      <TableRow className="bg-accent/30 hover:bg-accent/30">
+                        <TableCell
+                          colSpan={6}
+                          className="p-4 whitespace-normal sm:p-6"
+                        >
+                          <DeliveryExpandableContent
+                            delivery={row}
+                            onSave={handleSave}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
 
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs text-slate-500 sm:text-sm">
-              <span className="inline-flex items-center gap-1">
-                <ListFilter className="h-3.5 w-3.5" />
-                Showing {currentStart}-{currentEnd} of {totalRows}
-              </span>
-            </div>
+        <div className="text-muted-foreground flex items-center justify-between border-t px-4 py-3 text-sm">
+          <span className="tabular-nums">
+            {currentStart}–{currentEnd} of {totalRows}
+          </span>
+          <div className="flex items-center gap-1">
             <Button
-              disabled={page === 0}
-              onClick={() => setPage((currentPage) => Math.max(0, currentPage - 1))}
               variant="ghost"
-              className="justify-start text-slate-700 hover:bg-slate-100"
+              size="icon"
+              disabled={page === 0}
+              onClick={() =>
+                setPage((currentPage) => Math.max(0, currentPage - 1))
+              }
+              aria-label="Previous page"
             >
-              <ChevronLeft /> Previous
+              <ChevronLeft />
             </Button>
-            <p className="text-sm text-slate-600">
-              Page {Math.min(page + 1, Math.max(totalPages, 1))} of{' '}
+            <span className="px-1 tabular-nums">
+              {Math.min(page + 1, Math.max(totalPages, 1))} /{' '}
               {Math.max(totalPages, 1)}
-            </p>
+            </span>
             <Button
+              variant="ghost"
+              size="icon"
               disabled={page + 1 >= totalPages}
               onClick={() => setPage((currentPage) => currentPage + 1)}
-              variant="ghost"
-              className="justify-end text-slate-700 hover:bg-slate-100"
+              aria-label="Next page"
             >
-              Next <ChevronRight />
+              <ChevronRight />
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -3,9 +3,9 @@ import Navbar from './Navbar';
 
 const ProtectedLayout = () => {
   return (
-    <div className="min-h-screen bg-linear-to-b from-sky-50 via-slate-50 to-cyan-50">
+    <div className="min-h-screen">
       <Navbar />
-      <main className="px-4 pt-20 pb-8 md:px-8">
+      <main className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-10">
         <Outlet />
       </main>
     </div>
