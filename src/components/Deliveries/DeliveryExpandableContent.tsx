@@ -119,7 +119,16 @@ export function DeliveryExpandableContent({
 
   const form = useForm<Delivery>({
     resolver: zodResolver(deliverySchema),
-    defaultValues: delivery,
+    // The API returns these counts as numbers; the inputs and schema use strings.
+    defaultValues: {
+      ...delivery,
+      cooler_num: String(delivery.cooler_num ?? ''),
+      bag_limes: String(delivery.bag_limes ?? ''),
+      bag_oranges: String(delivery.bag_oranges ?? ''),
+      bag_lemons: String(delivery.bag_lemons ?? ''),
+      marg_salt: String(delivery.marg_salt ?? ''),
+      freeze_pops: String(delivery.freeze_pops ?? ''),
+    },
   });
   const watchedAddress =
     useWatch({ control: form.control, name: 'delivery_address' }) || '';
