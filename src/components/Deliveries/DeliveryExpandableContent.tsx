@@ -119,16 +119,13 @@ export function DeliveryExpandableContent({
 
   const form = useForm<Delivery>({
     resolver: zodResolver(deliverySchema),
-    // The API returns these counts as numbers; the inputs and schema use strings.
-    defaultValues: {
-      ...delivery,
-      cooler_num: String(delivery.cooler_num ?? ''),
-      bag_limes: String(delivery.bag_limes ?? ''),
-      bag_oranges: String(delivery.bag_oranges ?? ''),
-      bag_lemons: String(delivery.bag_lemons ?? ''),
-      marg_salt: String(delivery.marg_salt ?? ''),
-      freeze_pops: String(delivery.freeze_pops ?? ''),
-    },
+    // The API can return numbers or null for text fields; the inputs and schema use strings.
+    defaultValues: Object.fromEntries(
+      Object.entries(delivery).map(([key, value]) => [
+        key,
+        key === 'id' ? value : value == null ? '' : String(value),
+      ]),
+    ) as Delivery,
   });
   const watchedAddress =
     useWatch({ control: form.control, name: 'delivery_address' }) || '';
@@ -213,7 +210,14 @@ export function DeliveryExpandableContent({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+      <form
+        onSubmit={form.handleSubmit(handleSubmit, (errors) =>
+          toast.error(
+            `Could not save. Check: ${Object.keys(errors).join(', ')}`,
+          ),
+        )}
+        className="space-y-6"
+      >
         <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-4">
           <div className={sectionCardClassName}>
             <h4 className={sectionTitleClassName}>Customer Info</h4>

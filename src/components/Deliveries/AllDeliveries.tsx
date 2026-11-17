@@ -35,31 +35,6 @@ const ITEMS_PER_PAGE = 25;
 const DATE_FILTERS = ['upcoming', 'past', 'all'] as const;
 type DateFilter = (typeof DATE_FILTERS)[number];
 
-function formatDeliveryTime(deliveryTime: string) {
-  if (!deliveryTime) {
-    return { deliveryTimeFormatted: '', dayOrNight: '' };
-  }
-
-  const [hourStr, minuteStr] = deliveryTime.split(':');
-  let hour = parseInt(hourStr, 10);
-  const minute = minuteStr || '00';
-  let dayOrNight = 'AM';
-
-  if (hour >= 12) {
-    dayOrNight = 'PM';
-    if (hour > 12) {
-      hour -= 12;
-    }
-  } else if (hour === 0) {
-    hour = 12;
-  }
-
-  return {
-    deliveryTimeFormatted: `${hour}:${minute}`,
-    dayOrNight,
-  };
-}
-
 // API dates come back one day behind; shift forward to the intended calendar day.
 function toDisplayDate(dateValue: string) {
   const parsedDate = new Date(dateValue);
@@ -160,11 +135,8 @@ export default function AllDeliveriesTable() {
   });
 
   const handleSave = async (row: Delivery) => {
-    const { deliveryTimeFormatted, dayOrNight } = formatDeliveryTime(
-      row.deliverytime || '',
-    );
-    row.deliverytime = deliveryTimeFormatted;
-    row.dayornight = dayOrNight;
+    // The edit form stores 12-hour time plus AM/PM; match the add form's "2:00" style.
+    row.deliverytime = row.deliverytime.replace(/^0(\d)/, '$1');
 
     const token = localStorage.getItem('token');
     const response = await fetch(`${UPDATE_URL}/${row.id}`, {
